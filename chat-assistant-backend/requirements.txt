@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+transformers
+elasticsearch
+python-multipart
+dotenv
