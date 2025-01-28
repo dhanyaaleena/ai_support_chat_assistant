@@ -1,23 +1,23 @@
 import os
 from dotenv import load_dotenv
-import requests
+from huggingface_hub import InferenceClient
 
 # Load environment variables from the .env file
 load_dotenv()
 
-# Fetch API URL and API Key from environment variables
-HUGGINGFACE_API_URL = os.getenv("HUGGINGFACE_API_URL")
+# Fetch Hugging Face API Key from environment variables
 HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
 
-# Check if the environment variables are loaded correctly
-if not HUGGINGFACE_API_URL or not HUGGINGFACE_API_KEY:
-    raise ValueError("Hugging Face API URL or API Key not set in .env file.")
+# Check if the API Key is loaded correctly
+if not HUGGINGFACE_API_KEY:
+    raise ValueError("Hugging Face API Key not set in .env file.")
 
-HEADERS = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
+# Initialize the Inference Client
+client = InferenceClient(token=HUGGINGFACE_API_KEY)
 
 def categorize_ticket(chat_history: str):
     """
-    Categorizes the ticket based on the chat history using Hugging Face API.
+    Categorizes the ticket based on the chat history using Hugging Face's InferenceClient.
     
     Args:
         chat_history (str): The entire conversation or user query.
@@ -25,14 +25,34 @@ def categorize_ticket(chat_history: str):
     Returns:
         str: The predicted category, such as "bug", "feature_request", etc.
     """
-    payload = {
-        "inputs": chat_history,
-    }
-
-    # Call Hugging Face API to get the categorization
-    response = requests.post(HUGGINGFACE_API_URL, json=payload, headers=HEADERS)
+    # Format the prompt message
+    prompt = f"""
+    You are a ticket categorization assistant. Based on the following chat history, 
+    determine the category of the issue. Categories include "bug", "feature_request", 
+    or "general_question".
     
-    if response.status_code == 200:
-        category = response.json()[0]['label']
-        return category
-    return "uncategorized"
+    Chat History: {chat_history}
+    
+    Provide only the category name as the response.
+    """
+    
+    # Create the messages list
+    messages = [
+        {"role": "user", "content": prompt}
+    ]
+    
+    # Call the InferenceClient's chat completion API
+    try:
+        # Specify the model and generate the response
+        completion = client.chat.completions.create(
+            model="google/gemma-2-2b-it",  # Replace with the desired model
+            messages=messages,
+            max_tokens=10  # Optional: Limit the token output
+        )
+        
+        # Extract the generated text from the response
+        generated_text = completion['choices'][0]['message']['content']
+        return {"category": generated_text.strip()}
+    
+    except Exception as e:
+        return {"error": f"An error occurred while fetching the response: {str(e)}"}

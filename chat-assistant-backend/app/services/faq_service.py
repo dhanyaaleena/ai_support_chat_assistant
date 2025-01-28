@@ -54,8 +54,6 @@ def retrieve_faqs(query: str):
 
         # Search Pinecone for the most relevant FAQ
         search_results = index.query(vector=query_embedding, top_k=5, include_metadata=True)
-        
-        print("Search Results:", search_results)
 
         faqs = []
         
@@ -72,7 +70,6 @@ def retrieve_faqs(query: str):
                     "question": question,
                     "answer": answer
                 })
-                print("FAQS:", faqs)
         else:
             print("No matches found in the search results.")
         
