@@ -21,8 +21,10 @@ export default function EngineerView() {
 
   return (
     <Flex>
-      <Sidebar />
-      <Box p={4} bg="gray.800" color="white" minH="250vh" flex="1">
+      <Box width="250px" bg="gray.800" color="white" position="fixed" height="100vh">
+        <Sidebar />
+      </Box>
+      <Box p={4} bg="gray.800" color="white" minH="250vh" flex="1" marginLeft="250px">
         <Box overflowX="auto">
           <Table variant="simple" colorScheme="teal" size="sm">
             <Thead>

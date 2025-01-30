@@ -118,9 +118,14 @@ const ChatInterface = () => {
           <VStack spacing={6} align="stretch">
             {/* Show "How can I help you?" if no messages */}
             {messages.length === 0 ? (
-            <Text align="center" color="gray.500" fontSize="6xl" fontWeight="bold" mt={10}>
+            <VStack spacing={3} align="center" mt={10}>
+            <Text align="center" color="gray.500" fontSize="6xl" fontWeight="bold">
               How can I help you?
             </Text>
+            <Text align="center" color="gray.400" fontSize="lg" width="75%">
+            Ask me anything about eCommerce support or profile-related queries based on our FAQ data! If you need further assistance, I can create a support ticket for you.
+            </Text>
+          </VStack>
             ) : (
               messages.map((msg, index) => (
                 <Flex
