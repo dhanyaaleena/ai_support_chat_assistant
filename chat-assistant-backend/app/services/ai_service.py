@@ -5,6 +5,8 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langgraph.graph.message import add_messages
 from langgraph.graph import MessagesState
 from typing import Dict, Union
+import json
+from langchain_core.tools import Tool, StructuredTool
 
 # Load environment variables from the .env file
 load_dotenv()
@@ -19,38 +21,56 @@ if not HUGGINGFACE_API_KEY:
 client = InferenceClient(token=HUGGINGFACE_API_KEY)
 
 class State(MessagesState):
-    documents: list[str] = []
+    def __init__(self, messages=None, ticket_prompted=False):
+        super().__init__()  # Initialize the parent class (MessagesState)
+        self.messages = messages if messages is not None else []
+        self.ticket_prompted = ticket_prompted
 
 # Dictionary to store conversation states
 conversations: Dict[str, State] = {}
 
 def get_conversation_state(conversation_id: str) -> State:
-    """
-    Retrieves or initializes the conversation state for a given conversation ID.
-
-    Args:
-        conversation_id (str): Unique identifier for the conversation.
-
-    Returns:
-        State: The conversation's current state.
-    """
     if conversation_id not in conversations:
-        conversations[conversation_id] = State(messages=[])
+        conversations[conversation_id] = State(messages=[], ticket_prompted=False)
     return conversations[conversation_id]
 
-def format_prompt(question: str, faq_context: str, chat_context: str) -> str:
-    """
-    Formats the prompt for the Hugging Face Inference Client.
+def create_ticket(chat_context: str) -> dict:
+    """Generates a ticket based on chat context."""
+    ticket_prompt = f"""
+        Generate a support ticket with:
+        - **Summary**: Brief issue description.
+        - **Category**: "bug", "feature request", or "general question".
+        - **Additional Notes**: Relevant chat context.
+        
+        **Chat History**:
+        {chat_context}
+        - Provide your response in JSON format with the following structure: 
+        {{
+        "summary": "<Brief summary of issue>",
+        "category": "<General question / Feature request / Bug / Other>",
+        "additional_notes": "<User's concern summarized>"
+        }}
 
-    Args:
-        question (str): User's question.
-        faq_context (str): FAQ context to guide the response.
-        chat_context (str): Combined chat history context.
-
-    Returns:
-        str: The formatted prompt.
     """
-    return f"""
+    
+    completion = client.chat.completions.create(
+        model="google/gemma-2-2b-it",
+        messages=[{"role": "user", "content": ticket_prompt}],
+        max_tokens=300
+    )
+    
+    ticket_details = completion['choices'][0]['message']['content']
+    return json.loads(ticket_details.split("```json")[-1].strip().strip("```"))
+
+create_ticket_tool = Tool(
+    name="create_ticket",
+    func=lambda chat_context: create_ticket(chat_context),
+    description="Creates a support ticket based on chat context."
+)
+
+def faq_lookup(question: str, faq_context: str, chat_context: str) -> str:
+    """Looks up the answer in the FAQ context."""
+    prompt = f"""
         You are a support chat assistant designed to provide accurate and concise responses. You are given two inputs: a FAQ context and a chat history. Use these to draft your response.
 
         **FAQ Context**:  
@@ -62,7 +82,7 @@ def format_prompt(question: str, faq_context: str, chat_context: str) -> str:
         **Instructions**:  
         1. **FAQ Match**: If the user's last message or question aligns with the FAQ context, respond directly with the relevant answer from the FAQ.  
         2. **Out of Scope**: If the user's last message is outside the scope of the FAQ context, respond with:  
-        "Sorry, I can't help you with that now. Would you like to create a ticket for this?"  
+            "Sorry, I can't help you with that now. Would you like to create a ticket for this?(y/n)"  
         3. **Suggestion/Feature Request**: If the user's message is a suggestion or pertains to a new feature, respond with:  
         "Thank you for the suggestion! We are always looking for ways to improve. Would you like to create a ticket for this?"  
         4. **Acknowledgment**: If the user's last message is an acknowledgment like "Thank you," "Okay," or similar, respond warmly and joyfully with phrases such as:  
@@ -99,20 +119,21 @@ def format_prompt(question: str, faq_context: str, chat_context: str) -> str:
 
         Based on the above guidelines, provide a **single, clear, and concise response** to the user's last message.
     """
+    completion = client.chat.completions.create(
+            model="google/gemma-2-2b-it",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=500
+        )
+    generated_text = completion['choices'][0]['message']['content']
+    return generated_text
+
+faq_tool = StructuredTool.from_function(
+    name="faq_lookup",
+    func=faq_lookup,
+    description="Looks up the answer in the FAQ context and provides a response."
+)
 
 def generate_response(question: str, faq_context: str, conversation_id: str) -> Dict[str, Union[str, dict]]:
-    """
-    Generates a response to a question based on a conversation context using Hugging Face's InferenceClient
-    and LangChain's graph-based state management.
-
-    Args:
-        question (str): User's question.
-        faq_context (str): FAQ context to guide the response.
-        conversation_id (str): Unique identifier for the conversation.
-
-    Returns:
-        dict: The AI-generated response or error message.
-    """
     try:
         # Retrieve the state for the conversation
         state = get_conversation_state(conversation_id)
@@ -125,25 +146,28 @@ def generate_response(question: str, faq_context: str, conversation_id: str) -> 
         chat_context = "\n".join(
             [f"{message.type.capitalize()}: {message.content}" for message in state["messages"]]
         )
-
-        # Format the prompt
-        prompt = format_prompt(question, faq_context, chat_context)
-
-        # Call the Hugging Face Inference Client
-        completion = client.chat.completions.create(
-            model="google/gemma-2-2b-it",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=500
-        )
-
-        # Extract the AI-generated response
-        generated_text = completion['choices'][0]['message']['content']
-
-        # Add the AI's response to the state
-        assistant_message = AIMessage(content=generated_text)
+        response = {}
+        if question.lower() in ["y", "n"] and state["ticket_prompted"]:
+            if question.lower() == "y":
+                ticket_result = create_ticket_tool.invoke(chat_context)
+                response = {"generated_text": "I’ve created a ticket for you.", "ticket_details": ticket_result}
+            else:
+                response = {"generated_text": "Okay, let me know if you need further assistance."}
+            state["ticket_prompted"] = False
+            assistant_message = AIMessage(content=str(response))
+        else:
+            faq_answer = faq_tool.invoke({
+                "question": question, 
+                "faq_context": faq_context, 
+                "chat_context": chat_context
+            })
+            if "Would you like to create a ticket" in faq_answer:
+                state["ticket_prompted"] = True 
+            assistant_message = AIMessage(content=faq_answer)
+            response = faq_answer
         state["messages"] = add_messages(state["messages"], [assistant_message])
 
-        return {"generated_text": generated_text}
+        return {"generated_text": response}
 
     except Exception as e:
         return {"error": f"An error occurred while fetching the response: {str(e)}"}
