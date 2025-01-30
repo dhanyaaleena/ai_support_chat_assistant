@@ -164,10 +164,10 @@ def generate_response(question: str, faq_context: str, conversation_id: str) -> 
             if "Would you like to create a ticket" in faq_answer:
                 state["ticket_prompted"] = True 
             assistant_message = AIMessage(content=faq_answer)
-            response = faq_answer
+            response = {"generated_text": faq_answer}
         state["messages"] = add_messages(state["messages"], [assistant_message])
 
-        return {"generated_text": response}
+        return response
 
     except Exception as e:
         return {"error": f"An error occurred while fetching the response: {str(e)}"}
