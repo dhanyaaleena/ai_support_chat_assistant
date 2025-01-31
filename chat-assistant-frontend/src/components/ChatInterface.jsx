@@ -39,8 +39,9 @@ const ChatInterface = () => {
     setInput("");
   
     try {
+      const baseURL = process.env.PUBLIC_API_URL || "http://localhost:8000";
       // Call the backend API with the dynamic conversation ID
-      const response = await fetch("http://127.0.0.1:8000/api/chat", {
+      const response = await fetch(`${baseURL}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: input, conversation_id: conversationId }),
