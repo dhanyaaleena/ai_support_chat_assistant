@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI(title="Chat Assistant Backend")
 
 # Register Routes
-app.include_router(query.router, prefix="/api/chat", tags=["Query"])
+app.include_router(query.router, prefix="/support-chat/api/chat", tags=["Query"])
 
 app.add_middleware(
     CORSMiddleware, 
