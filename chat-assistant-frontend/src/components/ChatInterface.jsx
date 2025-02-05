@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { Box, Input, Button, VStack, Text, Avatar, Flex } from "@chakra-ui/react";
+import { Box, Input, Button, VStack, Text, Avatar, Flex, IconButton, Drawer, DrawerBody, DrawerHeader, DrawerOverlay, DrawerContent, useDisclosure } from "@chakra-ui/react";
 import { useToast } from "@chakra-ui/react";
+import { HamburgerIcon, CloseIcon } from "@chakra-ui/icons";
 import Sidebar from './Sidebar'; // Import Sidebar component
 import { createTicket } from '../utils/localStorage';
 
@@ -19,6 +20,7 @@ const ChatInterface = () => {
   const [conversationId, setConversationId] = useState(null); // Start with null until ID is generated
   const toast = useToast(); // Chakra UI toast hook
   const messageEndRef = useRef(null); // Reference to scroll to the latest message
+  const { isOpen, onOpen, onClose } = useDisclosure(); // Drawer for sidebar
 
   // Generate a new conversation ID when the component mounts
   useEffect(() => {
@@ -68,7 +70,7 @@ const ChatInterface = () => {
           id: ticketId,
           summary: data.ai_response.ticket_details.summary,
           issueType: data.ai_response.ticket_details.category,
-          status: "Open", // Initially set to "Open"
+          status: "Open", // Initially set  "Open"
           additionalNotes: data.ai_response.ticket_details.additional_notes
         };
   
@@ -95,52 +97,74 @@ const ChatInterface = () => {
   };
 
   return (
-    <Flex direction="row" height="100vh"> {/* Flex container for sidebar and chat */}
-      {/* Sidebar */}
-      <Box width="250px" bg="gray.800" color="white">
+    <Flex direction="row" height="100vh">
+      {/* Sidebar for desktop */}
+      <Box
+        width="250px"
+        bg="gray.800"
+        color="white"
+        display={{ base: "none", md: "block" }} // Hide on small screens, show on medium+
+      >
         <Sidebar />
       </Box>
+
+      {/* Sidebar Drawer for mobile */}
+      <Drawer isOpen={isOpen} placement="left" onClose={onClose}>
+        <DrawerOverlay />
+        <DrawerContent bg="gray.800" color="white">
+          <DrawerHeader display="flex" justifyContent="space-between">
+            <Text>Menu</Text>
+            <IconButton icon={<CloseIcon />} onClick={onClose} />
+          </DrawerHeader>
+          <DrawerBody>
+            <Sidebar />
+          </DrawerBody>
+        </DrawerContent>
+      </Drawer>
 
       {/* Chat Interface */}
       <Box
         bg="gray.800"
         color="white"
-        flex="1" // Ensure the chat area takes up the remaining space
+        flex="1"
         display="flex"
         flexDirection="column"
-        p={6} // Padding added here for spacing around the chat area
+        p={4}
       >
+        {/* Mobile Menu Button */}
+        <IconButton
+          icon={<HamburgerIcon />}
+          aria-label="Open menu"
+          display={{ base: "block", md: "none" }} // Show only on mobile
+          position="absolute"
+          top="4"
+          left="4"
+          onClick={onOpen}
+          bg="gray.700"
+          _hover={{ bg: "gray.600" }}
+        />
+
         {/* Messages container */}
-        <Box
-          flex="1" // This will allow the message area to grow and take up available space
-          overflowY="auto" // Makes the messages scrollable
-          mb={6} // Margin at the bottom to provide space for the input box
-        >
-          <VStack spacing={6} align="stretch">
-            {/* Show "How can I help you?" if no messages */}
+        <Box flex="1" overflowY="auto" mb={4}>
+          <VStack spacing={4} align="stretch">
             {messages.length === 0 ? (
-            <VStack spacing={3} align="center" mt={10}>
-            <Text align="center" color="gray.500" fontSize="6xl" fontWeight="bold">
-              How can I help you?
-            </Text>
-            <Text align="center" color="gray.400" fontSize="lg" width="75%">
-            Ask me anything about eCommerce support or profile-related queries based on our FAQ data! If you need further assistance, I can create a support ticket for you.
-            </Text>
-          </VStack>
+              <VStack spacing={3} align="center" mt={10}>
+                <Text align="center" color="gray.500" fontSize="6xl" fontWeight="bold">
+                  How can I help you?
+                </Text>
+                <Text align="center" color="gray.400" fontSize="lg" width="75%">
+                  Ask me anything about eCommerce support or profile-related queries based on our FAQ data! If you need further assistance, I can create a support ticket for you.
+                </Text>
+              </VStack>
             ) : (
               messages.map((msg, index) => (
                 <Flex
                   key={index}
                   align="center"
-                  justify={msg.sender === "user" ? "flex-end" : "flex-start"} // Align right for user, left for AI
+                  justify={msg.sender === "user" ? "flex-end" : "flex-start"}
                   direction="row"
                 >
-                  {/* Avatar and message container */}
-                  <Avatar
-                    size="sm"
-                    name={msg.sender === "user" ? "You" : "AI Assistant"}
-                    bg={msg.sender === "user" ? "blue.500" : "gray.500"}
-                  />
+                  <Avatar size="sm" name={msg.sender === "user" ? "You" : "AI Assistant"} bg={msg.sender === "user" ? "blue.500" : "gray.500"} />
                   <Box
                     p={3}
                     bg={msg.sender === "user" ? "blue.700" : "gray.600"}
@@ -156,13 +180,12 @@ const ChatInterface = () => {
                 </Flex>
               ))
             )}
-            {/* This div will scroll into view when new messages are added */}
             <div ref={messageEndRef} />
           </VStack>
         </Box>
 
         {/* Input area */}
-        <Flex direction="row" align="center" p={6} bg="gray.700" borderRadius="md">
+        <Flex direction="row" align="center" p={4} bg="gray.700" borderRadius="md">
           <Input
             placeholder="Type your message..."
             value={input}
@@ -175,12 +198,7 @@ const ChatInterface = () => {
             mr={4}
             size="md"
           />
-          <Button
-            colorScheme="blue"
-            onClick={handleSend}
-            bg="blue.700"
-            _hover={{ bg: "blue.600" }}
-          >
+          <Button colorScheme="blue" onClick={handleSend} bg="blue.700" _hover={{ bg: "blue.600" }}>
             Send
           </Button>
         </Flex>
