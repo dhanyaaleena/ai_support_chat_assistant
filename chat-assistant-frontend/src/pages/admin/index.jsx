@@ -3,7 +3,7 @@ import {
   useBreakpointValue, IconButton, Drawer, DrawerOverlay, DrawerContent, DrawerCloseButton 
 } from '@chakra-ui/react';
 import { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend, ResponsiveContainer } from 'recharts';
 import { getTickets, updateTicketStatus, assignTicketToEngineer, unassignTicket } from '../../utils/localStorage';
 import Sidebar from '../../components/Sidebar';
 import { FiMenu } from "react-icons/fi";
@@ -46,7 +46,7 @@ export default function AdminView() {
   };
 
   return (
-    <Flex direction="column" minH="100vh" bg="gray.800" color="e0e1dd">
+    <Flex direction="column" minH="100vh"  bg="gray.800" color="white">
       {/* Mobile Sidebar Toggle */}
       {isMobile && (
         <IconButton
@@ -87,16 +87,43 @@ export default function AdminView() {
       >
         {/* Ticket Statistics Graph */}
         <Box bg="gray.700" p={4} mb={6} borderRadius="lg">
-          <ResponsiveContainer width="100%" height={isMobile ? 200 : 300}>
-            <BarChart data={getChartData()} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Bar dataKey="count" fill="#82ca9d" />
-            </BarChart>
-          </ResponsiveContainer>
-        </Box>
+  <ResponsiveContainer width="100%" height={isMobile ? 200 : 300}>
+    <BarChart data={getChartData()} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.2)" />
+      <XAxis 
+        dataKey="name" 
+        stroke="rgba(255, 255, 255, 0.8)" 
+        tick={{ fill: 'rgba(255, 255, 255, 0.8)' }}
+      />
+      <YAxis 
+        allowDecimals={false} 
+        stroke="rgba(255, 255, 255, 0.8)" 
+        tick={{ fill: 'rgba(255, 255, 255, 0.8)' }}
+      />
+      <Tooltip 
+        contentStyle={{
+          backgroundColor: 'rgba(45, 55, 72, 0.9)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          borderRadius: '8px',
+          color: 'rgba(255, 255, 255, 0.8)',
+        }}
+        cursor={{ fill: 'rgba(255, 255, 255, 0.1)' }}
+      />
+      <Bar 
+        dataKey="count" 
+        fill="#4FD1C5" 
+        radius={[4, 4, 0, 0]} 
+        name="Ticket Count"
+      />
+      <Legend 
+        wrapperStyle={{
+          paddingTop: '10px',
+          color: 'rgba(255, 255, 255, 0.8)',
+        }}
+      />
+    </BarChart>
+  </ResponsiveContainer>
+</Box>
 
         {/* Ticket Table (Desktop) */}
         {!isMobile ? (
@@ -141,7 +168,7 @@ export default function AdminView() {
                         </Button>
                       )}
                       {ticket.assignedToEngineer && (
-                        <Button colorScheme="red" onClick={() => handleUnassign(ticket.id)} size="sm">
+                        <Button colorScheme="teal" onClick={() => handleUnassign(ticket.id)} size="sm">
                           Unassign
                         </Button>
                       )}

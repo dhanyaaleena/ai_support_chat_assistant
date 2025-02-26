@@ -82,7 +82,7 @@ def faq_lookup(question: str, faq_context: str, chat_context: str) -> str:
         **Instructions**:  
         1. **FAQ Match**: If the user's last message or question aligns with the FAQ context, respond directly with the relevant answer from the FAQ.  
         2. **Out of Scope**: If the user's last message is outside the scope of the FAQ context, respond with:  
-            "Sorry, I can't help you with that now. Would you like to create a ticket for this?(y/n)"  
+            "Sorry, I couldn't help. Would you like to create a ticket for this?(y/n)"  
         3. **Suggestion/Feature Request**: If the user's message is a suggestion or pertains to a new feature, respond with:  
         "Thank you for the suggestion! We are always looking for ways to improve. Would you like to create a ticket for this?"  
         4. **Acknowledgment**: If the user's last message is an acknowledgment like "Thank you," "Okay," or similar, respond warmly and joyfully with phrases such as:  
