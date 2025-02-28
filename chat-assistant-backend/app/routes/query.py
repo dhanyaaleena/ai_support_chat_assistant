@@ -42,7 +42,7 @@ class QueryRequest(BaseModel):
 """
 @router.post("/")
 async def get_faq(request: QueryRequest):
-    print("REQUEST", request)
+    # print("REQUEST", request)
     query = request.query.strip()  # Remove leading/trailing spaces
     conversation_id = request.conversation_id  
 
@@ -63,5 +63,5 @@ async def get_faq(request: QueryRequest):
     # Use the context to generate an AI response
     ai_response = generate_response(query, context, conversation_id=conversation_id)
     response = {"conversation_id": conversation_id, "ai_response": ai_response}
-    print("RESPONSE", response)
+    # print("RESPONSE", response)
     return response

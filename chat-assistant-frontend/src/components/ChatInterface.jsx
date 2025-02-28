@@ -20,9 +20,9 @@ const ChatInterface = () => {
   // Sample questions array
   const sampleQuestions = [
     "How do I reset my password?",
-    "How do I update my shipping address?",
     "What is your return policy?",
     "How do I track my order?",
+    "How do I redeem my loyalty points?",
   ];
 
   useEffect(() => {

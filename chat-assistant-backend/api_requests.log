@@ -1,0 +1,6 @@
+2025-02-28 13:24:59,314 - INFO - Incoming request: POST http://localhost:8000/support-chat/api/chat Body: {"query":"What should I do if I receive the wrong item?","conversation_id":"conv-1740777896765-638"}
+2025-02-28 13:24:59,321 - INFO - Incoming request: POST http://localhost:8000/support-chat/api/chat/ Body: {"query":"What should I do if I receive the wrong item?","conversation_id":"conv-1740777896765-638"}
+2025-02-28 13:25:13,451 - INFO - Incoming request: POST http://localhost:8000/support-chat/api/chat Body: {"query":"What should I do if I receive the wrong item?","conversation_id":"conv-1740777912245-394"}
+2025-02-28 13:25:13,519 - INFO - Incoming request: POST http://localhost:8000/support-chat/api/chat/ Body: {"query":"What should I do if I receive the wrong item?","conversation_id":"conv-1740777912245-394"}
+2025-02-28 13:26:18,229 - INFO - Incoming request: POST http://localhost:8000/support-chat/api/chat Body: {"query":"How do I redeem my loyalty points?","conversation_id":"conv-1740777976826-355"}
+2025-02-28 13:26:18,516 - INFO - Incoming request: POST http://localhost:8000/support-chat/api/chat/ Body: {"query":"How do I redeem my loyalty points?","conversation_id":"conv-1740777976826-355"}
