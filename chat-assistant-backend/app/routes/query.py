@@ -40,7 +40,7 @@ class QueryRequest(BaseModel):
     Returns:
         dict: The FAQ answers and/or AI-generated response.
 """
-@router.post("/")
+@router.post("")
 async def get_faq(request: QueryRequest):
     # print("REQUEST", request)
     query = request.query.strip()  # Remove leading/trailing spaces
