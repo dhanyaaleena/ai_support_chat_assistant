@@ -56,9 +56,9 @@ npm install
 ##### **Backend**  
 ```sh
 cd backend
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate   # On Windows use: venv\Scripts\activate
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
 #### **3. Configure Environment Variables**  
@@ -70,7 +70,7 @@ PINECONE_API_KEY=your_pinecone_api_key
 PINECONE_ENV=your_pinecone_environment
 PINECONE_INDEX=your_pinecone_index_name
 PORT=8000
-HUGGING_FACE_API_KEY=your_hugging_face_api_key
+GEMINI_API_KEY=
 ```
 
 #### **4. Run the Project**  

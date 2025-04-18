@@ -1,24 +1,23 @@
 import os
 from dotenv import load_dotenv
-from huggingface_hub import InferenceClient
 from langchain_core.messages import HumanMessage, AIMessage
 from langgraph.graph.message import add_messages
 from langgraph.graph import MessagesState
 from typing import Dict, Union
 import json
 from langchain_core.tools import Tool, StructuredTool
+import httpx
+from fastapi import HTTPException
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 # Load environment variables from the .env file
 load_dotenv()
 
-# Fetch Hugging Face API Key from environment variables
-HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
-
-if not HUGGINGFACE_API_KEY:
-    raise ValueError("Hugging Face API Key not set in .env file.")
-
-# Initialize the Inference Client
-client = InferenceClient(token=HUGGINGFACE_API_KEY)
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
 
 class State(MessagesState):
     def __init__(self, messages=None, ticket_prompted=False):
@@ -52,14 +51,26 @@ def create_ticket(chat_context: str) -> dict:
         }}
 
     """
-    
-    completion = client.chat.completions.create(
-        model="google/gemma-2-2b-it",
-        messages=[{"role": "user", "content": ticket_prompt}],
-        max_tokens=300
-    )
-    
-    ticket_details = completion['choices'][0]['message']['content']
+
+    payload = {
+            "contents": [{
+                "parts": [{"text": ticket_prompt}]
+            }]
+        }
+
+    headers = {
+            "Content-Type": "application/json"
+        }
+
+    response = httpx.post(GEMINI_API_URL, headers=headers, json=payload)
+
+    if response.status_code != 200:
+        logger.error("Gemini API error: %s", response.text)
+        raise HTTPException(status_code=response.status_code, detail=response.text)
+
+    gemini_response = response.json()
+    ticket_details = gemini_response["candidates"][0]["content"]["parts"][0]["text"]
+
     return json.loads(ticket_details.split("```json")[-1].strip().strip("```"))
 
 create_ticket_tool = Tool(
@@ -119,13 +130,25 @@ def faq_lookup(question: str, faq_context: str, chat_context: str) -> str:
 
         Based on the above guidelines, provide a **single, clear, and concise response** to the user's last message.
     """
-    completion = client.chat.completions.create(
-            model="google/gemma-2-2b-it",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=500
-        )
-    generated_text = completion['choices'][0]['message']['content']
-    return generated_text
+    payload = {
+            "contents": [{
+                "parts": [{"text": prompt}]
+            }]
+        }
+
+    headers = {
+            "Content-Type": "application/json"
+        }
+
+    response = httpx.post(GEMINI_API_URL, headers=headers, json=payload)
+
+    if response.status_code != 200:
+        logger.error("Gemini API error: %s", response.text)
+        raise HTTPException(status_code=response.status_code, detail=response.text)
+
+    gemini_response = response.json()
+    generated_text = gemini_response["candidates"][0]["content"]["parts"][0]["text"]
+    return {"generated_text": generated_text}
 
 faq_tool = StructuredTool.from_function(
     name="faq_lookup",
@@ -135,39 +158,53 @@ faq_tool = StructuredTool.from_function(
 
 def generate_response(question: str, faq_context: str, conversation_id: str) -> Dict[str, Union[str, dict]]:
     try:
-        # Retrieve the state for the conversation
         state = get_conversation_state(conversation_id)
-
-        # Add the user's message to the state
         user_message = HumanMessage(content=question)
         state["messages"] = add_messages(state["messages"], [user_message])
 
-        # Prepare chat context from the conversation history
         chat_context = "\n".join(
-            [f"{message.type.capitalize()}: {message.content}" for message in state["messages"]]
+            [f"{msg.type.capitalize()}: {msg.content}" for msg in state["messages"]]
         )
+
         response = {}
         if question.lower() in ["y", "n"] and state["ticket_prompted"]:
             if question.lower() == "y":
+                # Attempt ticket creation
                 ticket_result = create_ticket_tool.invoke(chat_context)
-                response = {"generated_text": "I’ve created a ticket for you.", "ticket_details": ticket_result}
+                
+                # Check for errors in ticket creation
+                if "error" in ticket_result:
+                    response = {"generated_text": f"Ticket creation failed: {ticket_result['error']}"}
+                else:
+                    response = {
+                        "generated_text": "Ticket created successfully!",
+                        "ticket_details": ticket_result
+                    }
             else:
                 response = {"generated_text": "Okay, let me know if you need further assistance."}
+
             state["ticket_prompted"] = False
-            assistant_message = AIMessage(content=str(response))
+            assistant_message = AIMessage(content=response["generated_text"])
+
         else:
+            # FAQ lookup logic
             faq_answer = faq_tool.invoke({
                 "question": question, 
                 "faq_context": faq_context, 
                 "chat_context": chat_context
             })
-            if "Would you like to create a ticket" in faq_answer:
-                state["ticket_prompted"] = True 
-            assistant_message = AIMessage(content=faq_answer)
-            response = {"generated_text": faq_answer}
-        state["messages"] = add_messages(state["messages"], [assistant_message])
+            
+            # Check if ticket prompt is needed
+            if "Would you like to create a ticket" in faq_answer["generated_text"]:
+                state["ticket_prompted"] = True
+            
+            assistant_message = AIMessage(content=faq_answer["generated_text"])
+            response = {"generated_text": faq_answer["generated_text"]}
 
+        # Update conversation history
+        state["messages"] = add_messages(state["messages"], [assistant_message])
         return response
 
     except Exception as e:
-        return {"error": f"An error occurred while fetching the response: {str(e)}"}
+        logger.error(f"Critical error: {str(e)}")
+        return {"error": f"An error occurred: {str(e)}"}
